@@ -1,0 +1,64 @@
+directive @isAuthenticated on FIELD_DEFINITION
+directive @isAdmin on FIELD_DEFINITION
+
+"Пользователь системы"
+type User {
+    id: ID!
+    email: String!
+    isActive: Boolean!
+    isAdmin: Boolean!
+    createdAt: String!
+}
+
+"OAuth-клиент"
+type Client {
+    id: ID!
+    clientId: String!
+    name: String!
+    isConfidential: Boolean!
+    redirectUris: [String!]!
+    createdAt: String!
+}
+
+"Событие аудита"
+type AuditEvent {
+    id: ID!
+    eventType: String!
+    actorId: Int
+    clientId: String
+    ip: String
+    userAgent: String
+    metadata: String
+    createdAt: String!
+}
+
+"Результат регистрации/логина"
+type AuthPayload {
+    accessToken: String!
+    tokenType: String!
+}
+
+type Query {
+    "Текущий пользователь, требует аутентификации"
+    me: User! @isAuthenticated
+
+    "Список пользователей с поиском и разделением на страницы. Только для админов"
+    users(search: String, limit: Int = 50, offset: Int = 0): [User!]! @isAdmin
+
+    "Список OAuth-клиентов. Только для админов"
+    clients: [Client!]! @isAdmin
+
+    "Журнал аудита. Только для админов"
+    auditEvents(eventType: String, limit: Int = 100, offset: Int = 0): [AuditEvent!]! @isAdmin   
+}
+
+type Mutation {
+    "Регистрация нового пользователя. Публичная"
+    registerUser(email: String!, password: String!): AuthPayload!
+
+    "Создать OAuth-клиента. Только для админов"
+    createClient(name: String!, isConfidential: Boolean = true): Client! @isAdmin
+
+    "Отключить пользователя. Только для админов"
+    disableUser(userId: ID!): User! @isAdmin
+}

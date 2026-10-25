@@ -6,12 +6,17 @@ from app.auth.router import router as auth_router
 from app.config import settings
 from app.graphql.schema import graphql_app
 
+from app.oauth.discovery import router as discovery_router
+from app.oauth.jwks import router as jwks_router
+
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
 )
 
 app.include_router(auth_router)
+app.include_router(jwks_router)
+app.include_router(discovery_router)
 
 @app.get("/health", tags=["meta"])
 def health():

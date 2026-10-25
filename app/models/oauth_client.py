@@ -24,10 +24,28 @@ class OAuthClient(Base):
         Boolean, default=True, nullable=False
     )
 
+    hashed_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     redirect_uris: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+
+    scopes: Mapped[list[str]] = mapped_column(
+        JSON, default=lambda: ["openid"], nullable=False
+    )
+
+    grant_types: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=lambda: ["authorization_code", "refresh_token"],
+        nullable=False,
+    )
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=_utcnow, nullable=False
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
     def __repr__(self) -> str:

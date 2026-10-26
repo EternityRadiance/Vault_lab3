@@ -32,6 +32,31 @@ type AuditEvent {
     createdAt: String!
 }
 
+"Пользовательская сессия (refresh)"
+type Session {
+    id: ID!
+    clientId: String!
+    familyId: String!
+    ip: String
+    userAgent: String
+    createdAt: String!
+    lastSeenAt: String!
+    revokedAt: String
+}
+
+"Информация о refresh-токене (без значения)"
+type RefreshTokenInfo {
+    id: ID!
+    jti: String!
+    familyId: String!
+    clientId: String!
+    scope: String!
+    expiresAt: String!
+    usedAt: String
+    revokedAt: String
+    createdAt: String!
+}
+
 "Результат регистрации/логина"
 type AuthPayload {
     accessToken: String!
@@ -49,7 +74,13 @@ type Query {
     clients: [Client!]! @isAdmin
 
     "Журнал аудита. Только для админов"
-    auditEvents(eventType: String, limit: Int = 100, offset: Int = 0): [AuditEvent!]! @isAdmin   
+    auditEvents(eventType: String, limit: Int = 100, offset: Int = 0): [AuditEvent!]! @isAdmin
+
+    "Список активных сессий пользователя. Только для админов."
+    sessions(userId: ID!): [Session!]! @isAdmin
+
+    "Список refresh-токенов пользователя. Только для админов."
+    refreshTokens(userId: ID!): [RefreshTokenInfo!]! @isAdmin   
 }
 
 type Mutation {

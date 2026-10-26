@@ -17,6 +17,9 @@ from app.models.oauth_client import OAuthClient
 from app.models.audit_event import AuditEvent
 from app.models.user import User
 
+from app.models.refresh_token import RefreshToken
+from app.models.user_session import UserSession
+
 query = QueryType()
 mutation = MutationType()
 audit_event_type = ObjectType("AuditEvent")
@@ -86,6 +89,37 @@ def resolve_register_user(obj, info, email, password):
         raise ValueError(str(e)) from e
 
     return {"access_token": token, "token_type": "bearer"}
+
+@query.field("sessions")
+@convert_kwargs_to_snake_case
+def resolve_sessions(obj, info, user_id):
+    db: Session = info.context["db"]
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid user_id")
+
+    return db.execute(
+        select(UserSession)
+        .where(UserSession.user_id == uid)
+        .order_by(UserSession.created_at.desc())
+    ).scalars().all()
+
+
+@query.field("refreshTokens")
+@convert_kwargs_to_snake_case
+def resolve_refresh_tokens(obj, info, user_id):
+    db: Session = info.context["db"]
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid user_id")
+
+    return db.execute(
+        select(RefreshToken)
+        .where(RefreshToken.user_id == uid)
+        .order_by(RefreshToken.created_at.desc())
+    ).scalars().all()
 
 @mutation.field("createClient")
 @convert_kwargs_to_snake_case

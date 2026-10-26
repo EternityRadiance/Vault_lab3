@@ -64,7 +64,7 @@ type RefreshTokenInfo {
 "Новый секрет OAuth-клиента. Показывается один раз."
 type ClientSecretPayload {
     clientId: ID!
-    clientSecret: String!
+    clientSecret: String
 }
 
 "Результат регистрации/логина"
@@ -98,7 +98,13 @@ type Mutation {
     registerUser(email: String!, password: String!): AuthPayload!
 
     "Создать OAuth-клиента. Только для админов"
-    createClient(name: String!, isConfidential: Boolean = true): Client! @isAdmin
+    createClient(
+        name: String!
+        isConfidential: Boolean = true
+        scopes: [String!] = ["openid"]
+        grantTypes: [String!] = ["authorization_code", "refresh_token"]
+        redirectUris: [String!] = []
+    ): ClientSecretPayload! @isAdmin
 
     "Отключить пользователя. Только для админов"
     disableUser(userId: ID!): User! @isAdmin

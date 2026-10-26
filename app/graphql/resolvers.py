@@ -127,17 +127,41 @@ def resolve_refresh_tokens(obj, info, user_id):
 
 @mutation.field("createClient")
 @convert_kwargs_to_snake_case
-def resolve_create_client(obj, info, name, is_confidential=True):
+def resolve_create_client(
+    obj, info, name,
+    is_confidential=True,
+    scopes=None,
+    grant_types=None,
+    redirect_uris=None,
+):
+    import secrets
+    from app.audit.events import OAuthEvents
+    from app.audit.service import get_client_info, write_event
+    from app.core.passwords import hash_password
 
     db: Session = info.context["db"]
     request = info.context.get("request")
     current_user: User = info.context["user"]
 
+    scopes = scopes or ["openid"]
+    grant_types = grant_types or ["authorization_code", "refresh_token"]
+    redirect_uris = redirect_uris or []
+
+    raw_secret: str | None = None
+    hashed_secret: str | None = None
+    if is_confidential:
+        raw_secret = secrets.token_urlsafe(48)
+        hashed_secret = hash_password(raw_secret)
+
     client = OAuthClient(
         client_id=uuid4().hex,
         name=name,
         is_confidential=is_confidential,
-        redirect_uris=[]
+        hashed_secret=hashed_secret,
+        redirect_uris=redirect_uris,
+        scopes=scopes,
+        grant_types=grant_types,
+        is_active=True,
     )
     db.add(client)
     db.flush()
@@ -145,14 +169,23 @@ def resolve_create_client(obj, info, name, is_confidential=True):
     info_dict = get_client_info(request)
     write_event(
         db,
-        ClientEvents.CREATED,
+        OAuthEvents.CLIENT_CREATED,
         actor_id=current_user.id,
+        client_id=client.client_id,
         ip=info_dict["ip"],
         user_agent=info_dict["user_agent"],
-        metadata={"name": client.name},
+        metadata={
+            "name": client.name,
+            "is_confidential": is_confidential,
+            "scopes": scopes,
+            "grant_types": grant_types,
+        },
     )
 
-    return client
+    return {
+        "client_id": str(client.id),
+        "client_secret": raw_secret,
+    }
 
 @mutation.field("disableUser")
 @convert_kwargs_to_snake_case

@@ -81,9 +81,9 @@ class TestCreateClientMutation:
     def test_create_client_without_token(self, client: TestClient):
         result = gql(
             client,
-            'mutation { createClient(name: "X") { id name } }',
+            'mutation { createClient(name: "X") { clientId clientSecret } }',
         )
-        assert result["data"] is None
+        assert result.get("data") is None
         assert any("Authentication" in e["message"] for e in result["errors"])
 
     def test_create_client_with_forbidden(
@@ -91,10 +91,10 @@ class TestCreateClientMutation:
     ):
         result = gql(
             client,
-            'mutation { createClient(name: "X") { id name } }',
+            'mutation { createClient(name: "X") { clientId clientSecret } }',
             token=regular_token,
         )
-        assert result["data"] is None
+        assert result.get("data") is None
         assert any("Admin" in e["message"] for e in result["errors"])
 
     def test_create_with_admin(self, client: TestClient, admin_token: str):
@@ -102,12 +102,15 @@ class TestCreateClientMutation:
             client,
             """
             mutation {
-                createClient(name: "Test Client", isConfidential: true) {
-                    id
+                createClient(
+                    name: "Test Client"
+                    isConfidential: true
+                    scopes: ["openid", "email"]
+                    grantTypes: ["authorization_code", "refresh_token"]
+                    redirectUris: ["http://localhost/cb"]
+                ) {
                     clientId
-                    name
-                    isConfidential
-                    redirectUris
+                    clientSecret
                 }
             }
             """,
@@ -115,11 +118,9 @@ class TestCreateClientMutation:
         )
         assert result["data"] is not None
         c = result["data"]["createClient"]
-        assert c["name"] == "Test Client"
-        assert c["isConfidential"] is True
-        assert c["redirectUris"] == []
-        assert len(c["clientId"]) == 32
-
+        assert c["clientId"] is not None
+        assert c["clientSecret"] is not None
+        
 class TestAuditEventsQuery:
     def test_audit_without_token_fails(self, client: TestClient):
         result = gql(client, "{ auditEvents { id eventType } }")

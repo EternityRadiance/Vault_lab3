@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="card">
+        <h2>ID Token claims</h2>
+        <pre>{{ id_claims | tojson(indent=2) }}</pre>
+    </div>
+    <div class="card">
+        <h2>Access Token claims</h2>
+        <pre>{{ access_claims | tojson(indent=2) }}</pre>
+    </div>
+    <p><a href="/">← Назад</a></p>
+{% endblock %}

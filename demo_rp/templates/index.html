@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="card">
+        {% if logged_in %}
+            <p>Привет, <strong>{{ email }}</strong>!</p>
+            <p>Ты залогинен через Vault ({{ issuer }}).</p>
+            <p>
+                <a href="/profile" class="btn">Профиль</a>
+                <form method="post" action="/logout">
+                    <button type="submit" class="logout">Выйти</button>
+                </form>
+            </p>
+        {% else %}
+            <p>Ты не залогинен.</p>
+            <p><a href="/login" class="btn">Войти через Vault</a></p>
+        {% endif %}
+    </div>
+{% endblock %}

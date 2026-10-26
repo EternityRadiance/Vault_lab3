@@ -17,7 +17,11 @@ type Client {
     name: String!
     isConfidential: Boolean!
     redirectUris: [String!]!
+    scopes: [String!]!
+    grantTypes: [String!]!
+    isActive: Boolean!
     createdAt: String!
+    updatedAt: String!
 }
 
 "Событие аудита"
@@ -55,6 +59,12 @@ type RefreshTokenInfo {
     usedAt: String
     revokedAt: String
     createdAt: String!
+}
+
+"Новый секрет OAuth-клиента. Показывается один раз."
+type ClientSecretPayload {
+    clientId: ID!
+    clientSecret: String!
 }
 
 "Результат регистрации/логина"
@@ -95,4 +105,13 @@ type Mutation {
 
     "Отозвать все сессии пользователя. Возвращает количество отозванных сессий."
     revokeUserSessions(userId: ID!): Int! @isAdmin
+
+    "Сгенерировать новый client_secret. Показывается один раз."
+    rotateClientSecret(clientId: ID!): ClientSecretPayload! @isAdmin
+
+    "Включить OAuth-клиента."
+    enableClient(clientId: ID!): Client! @isAdmin
+
+    "Выключить OAuth-клиента."
+    disableClient(clientId: ID!): Client! @isAdmin
 }

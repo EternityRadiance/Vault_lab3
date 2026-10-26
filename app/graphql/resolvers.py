@@ -211,13 +211,11 @@ def resolve_revoke_user_sessions(obj, info, user_id):
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    # Пометить все refresh-токены
     rt_result = db.execute(
         update(RefreshToken)
         .where(RefreshToken.user_id == uid, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=now)
     )
-    # Пометить все сессии
     us_result = db.execute(
         update(UserSession)
         .where(UserSession.user_id == uid, UserSession.revoked_at.is_(None))
@@ -242,3 +240,131 @@ def resolve_revoke_user_sessions(obj, info, user_id):
     )
 
     return count
+
+@mutation.field("rotateClientSecret")
+@convert_kwargs_to_snake_case
+def resolve_rotate_client_secret(obj, info, client_id):
+    import secrets
+    from app.audit.events import OAuthEvents
+    from app.audit.service import get_client_info, write_event
+    from app.core.passwords import hash_password
+
+    db: Session = info.context["db"]
+    request = info.context.get("request")
+    current_user: User = info.context["user"]
+
+    try:
+        cid = int(client_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid clientId")
+
+    client = db.execute(
+        select(OAuthClient).where(OAuthClient.id == cid)
+    ).scalar_one_or_none()
+    if client is None:
+        raise ValueError("Client not found")
+
+    if not client.is_confidential:
+        raise ValueError("Cannot rotate secret for public client")
+
+    raw_secret = secrets.token_urlsafe(48)
+    client.hashed_secret = hash_password(raw_secret)
+    db.commit()
+    db.refresh(client)
+
+    info_dict = get_client_info(request)
+    write_event(
+        db,
+        OAuthEvents.CLIENT_SECRET_ROTATED,
+        actor_id=current_user.id,
+        client_id=client.client_id,
+        ip=info_dict["ip"],
+        user_agent=info_dict["user_agent"],
+        metadata={"target_client_id": client.client_id},
+    )
+
+    return {"client_id": str(client.id), "client_secret": raw_secret}
+
+
+@mutation.field("enableClient")
+@convert_kwargs_to_snake_case
+def resolve_enable_client(obj, info, client_id):
+    from app.audit.events import OAuthEvents
+    from app.audit.service import get_client_info, write_event
+
+    db: Session = info.context["db"]
+    request = info.context.get("request")
+    current_user: User = info.context["user"]
+
+    try:
+        cid = int(client_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid clientId")
+
+    client = db.execute(
+        select(OAuthClient).where(OAuthClient.id == cid)
+    ).scalar_one_or_none()
+    if client is None:
+        raise ValueError("Client not found")
+
+    if client.is_active:
+        return client
+
+    client.is_active = True
+    db.commit()
+    db.refresh(client)
+
+    info_dict = get_client_info(request)
+    write_event(
+        db,
+        OAuthEvents.CLIENT_ENABLED,
+        actor_id=current_user.id,
+        client_id=client.client_id,
+        ip=info_dict["ip"],
+        user_agent=info_dict["user_agent"],
+        metadata={"target_client_id": client.client_id},
+    )
+
+    return client
+
+
+@mutation.field("disableClient")
+@convert_kwargs_to_snake_case
+def resolve_disable_client(obj, info, client_id):
+    from app.audit.events import OAuthEvents
+    from app.audit.service import get_client_info, write_event
+
+    db: Session = info.context["db"]
+    request = info.context.get("request")
+    current_user: User = info.context["user"]
+
+    try:
+        cid = int(client_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid clientId")
+
+    client = db.execute(
+        select(OAuthClient).where(OAuthClient.id == cid)
+    ).scalar_one_or_none()
+    if client is None:
+        raise ValueError("Client not found")
+
+    if not client.is_active:
+        return client
+
+    client.is_active = False
+    db.commit()
+    db.refresh(client)
+
+    info_dict = get_client_info(request)
+    write_event(
+        db,
+        OAuthEvents.CLIENT_DISABLED,
+        actor_id=current_user.id,
+        client_id=client.client_id,
+        ip=info_dict["ip"],
+        user_agent=info_dict["user_agent"],
+        metadata={"target_client_id": client.client_id},
+    )
+
+    return client

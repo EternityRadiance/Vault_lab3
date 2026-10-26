@@ -5,6 +5,10 @@ from sqlalchemy.orm import Session
 from uuid import uuid4
 import json
 
+from datetime import datetime, timezone
+from sqlalchemy import update
+from app.audit.events import OAuthEvents
+
 from app.audit.events import ClientEvents, UserEvents
 from app.audit.service import get_client_info, write_event
 from app.auth.service import (
@@ -186,3 +190,55 @@ def resolve_disable_user(obj, info, user_id):
     )
 
     return target
+
+@mutation.field("revokeUserSessions")
+@convert_kwargs_to_snake_case
+def resolve_revoke_user_sessions(obj, info, user_id):
+    
+
+    db: Session = info.context["db"]
+    request = info.context.get("request")
+    current_user: User = info.context["user"]
+
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        raise ValueError("invalid user_id")
+
+    target = db.execute(select(User).where(User.id == uid)).scalar_one_or_none()
+    if target is None:
+        raise ValueError("User not found")
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    # Пометить все refresh-токены
+    rt_result = db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == uid, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    # Пометить все сессии
+    us_result = db.execute(
+        update(UserSession)
+        .where(UserSession.user_id == uid, UserSession.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    db.commit()
+
+    count = us_result.rowcount
+
+    info_dict = get_client_info(request)
+    write_event(
+        db,
+        OAuthEvents.SESSION_REVOKED,
+        actor_id=current_user.id,
+        ip=info_dict["ip"],
+        user_agent=info_dict["user_agent"],
+        metadata={
+            "target_user_id": uid,
+            "refresh_tokens_revoked": rt_result.rowcount,
+            "sessions_revoked": count,
+        },
+    )
+
+    return count

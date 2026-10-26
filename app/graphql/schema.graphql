@@ -92,4 +92,7 @@ type Mutation {
 
     "Отключить пользователя. Только для админов"
     disableUser(userId: ID!): User! @isAdmin
+
+    "Отозвать все сессии пользователя. Возвращает количество отозванных сессий."
+    revokeUserSessions(userId: ID!): Int! @isAdmin
 }

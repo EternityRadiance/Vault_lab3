@@ -7,6 +7,7 @@ from app.oauth.client_auth import authenticate_client
 from app.oauth.errors import UNSUPPORTED_GRANT_TYPE, oauth_json_error
 from app.oauth.grants.authorization_code import handle_authorization_code_grant
 from app.oauth.grants.password import handle_password_grant
+from app.oauth.grants.refresh_token import handle_refresh_token_grant
 
 router = APIRouter(tags=["oauth"])
 
@@ -22,6 +23,7 @@ def token(
     code: str | None = Form(default=None),
     redirect_uri: str | None = Form(default=None),
     code_verifier: str | None = Form(default=None),
+    refresh_token_value: str | None = Form(default=None, alias="refresh_token"),
     db: Session = Depends(get_db),
 ) -> dict:
     client = authenticate_client(db, request, client_id, client_secret)
@@ -42,6 +44,14 @@ def token(
             code=code,
             redirect_uri=redirect_uri,
             code_verifier=code_verifier,
+        )
+
+    if grant_type == "refresh_token":
+        return handle_refresh_token_grant(
+            db, request,
+            client=client,
+            refresh_token=refresh_token_value,
+            scope=scope,
         )
 
     oauth_json_error(

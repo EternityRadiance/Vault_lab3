@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.jwt import decode_token
 from app.db.session import get_db
 from app.models.user import User
+from app.redis_client import is_blacklisted
 
 def _extract_bearer_token(request: Request) -> str | None:
     auth = request.headers.get("Authorization")
@@ -36,6 +37,14 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    jti = payload.get("jti")
+    if jti and is_blacklisted(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

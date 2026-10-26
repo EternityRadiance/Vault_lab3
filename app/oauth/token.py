@@ -6,6 +6,7 @@ from app.db.session import get_db
 from app.oauth.client_auth import authenticate_client
 from app.oauth.errors import UNSUPPORTED_GRANT_TYPE, oauth_json_error
 from app.oauth.grants.authorization_code import handle_authorization_code_grant
+from app.oauth.grants.client_credentials import handle_client_credentials_grant
 from app.oauth.grants.password import handle_password_grant
 from app.oauth.grants.refresh_token import handle_refresh_token_grant
 
@@ -51,6 +52,13 @@ def token(
             db, request,
             client=client,
             refresh_token=refresh_token_value,
+            scope=scope,
+        )
+
+    if grant_type == "client_credentials":
+        return handle_client_credentials_grant(
+            db, request,
+            client=client,
             scope=scope,
         )
 

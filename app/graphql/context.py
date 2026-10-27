@@ -4,6 +4,7 @@ from app.core.deps import _extract_bearer_token
 from app.core.jwt import decode_token
 from app.db import session as db_session_module
 from app.models.user import User
+from app.redis_client import is_blacklisted
 
 def get_context_value(request, data) -> dict:
 
@@ -19,6 +20,9 @@ def get_context_value(request, data) -> dict:
     if token:
         try:
             payload = decode_token(token)
+            jti = payload.get("jti")
+            if jti and is_blacklisted(jti):
+                raise ValueError("Token has been revoked")
             user_id = int(payload["sub"])
             user = db.get(User, user_id)
             if user is not None and user.is_active:

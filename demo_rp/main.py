@@ -20,7 +20,7 @@ from jose import jwt, jwk
 
 
 VAULT_URL = "http://127.0.0.1:8000"
-CLIENT_ID = "9c05f478b92149e5b7b3d99b89006587"
+CLIENT_ID = "3551f703a89e40e1986b1b1a76cfb061"
 REDIRECT_URI = "http://127.0.0.1:8001/callback"
 SCOPES = ["openid", "profile", "email"]
 

@@ -14,9 +14,9 @@ class Settings(BaseSettings):
         description="Подключение SQLAlchemy"
     )
 
-    jwt_secret: str = Field(..., min_length=32)
-    jwt_algorithm: str = "HS256"
-    access_token_ttl_min: int = Field(60, ge=1, le=24 * 60)
+    #jwt_secret: str = Field(..., min_length=32)
+    #jwt_algorithm: str = "RS256"
+    #access_token_ttl_min: int = Field(60, ge=1, le=24 * 60)
 
     password_pepper: str = Field(..., min_length=32)
     password_min_length: int = Field(12, ge=8, le=128)

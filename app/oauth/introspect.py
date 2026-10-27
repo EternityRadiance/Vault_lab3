@@ -17,7 +17,7 @@ router = APIRouter(tags=["oauth"])
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
-@router.post("/oauth/introspect", include_in_schema=False)
+@router.post("/oauth/introspect")
 def introspect(
     request: Request,
     token: str = Form(...),

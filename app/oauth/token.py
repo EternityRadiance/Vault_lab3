@@ -12,7 +12,7 @@ from app.oauth.grants.refresh_token import handle_refresh_token_grant
 
 router = APIRouter(tags=["oauth"])
 
-@router.post("/oauth/token", include_in_schema=False)
+@router.post("/oauth/token")
 def token(
     request: Request,
     grant_type: str = Form(...),

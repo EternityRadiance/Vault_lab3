@@ -6,15 +6,10 @@ from app.db import session as db_session_module
 from app.models.user import User
 from app.redis_client import is_blacklisted
 
+
 def get_context_value(request, data) -> dict:
-
     db = db_session_module.SessionLocal()
-
-    context = {
-        "request": request,
-        "db": db,
-        "user": None,
-    }
+    context = {"request": request, "db": db, "user": None}
 
     token = _extract_bearer_token(request)
     if token:
@@ -22,7 +17,7 @@ def get_context_value(request, data) -> dict:
             payload = decode_token(token)
             jti = payload.get("jti")
             if jti and is_blacklisted(jti):
-                raise ValueError("Token has been revoked")
+                raise ValueError("revoked")
             user_id = int(payload["sub"])
             user = db.get(User, user_id)
             if user is not None and user.is_active:

@@ -2,6 +2,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.graphql.schema import graphql_app
@@ -14,6 +16,15 @@ app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
 )
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith(("/admin", "/account")):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+app.add_middleware(NoCacheMiddleware)
 
 app.include_router(auth_router)
 app.include_router(jwks_router)

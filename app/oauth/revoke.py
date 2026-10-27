@@ -85,7 +85,7 @@ def _revoke_access_token(raw_token: str, request: Request, db: Session) -> None:
             metadata={"token_type": "access_token", "jti": jti},
         )
 
-@router.post("/oauth/revoke", include_in_schema=False)
+@router.post("/oauth/revoke")
 def revoke(
     request: Request,
     token: str = Form(...),

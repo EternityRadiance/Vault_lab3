@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from uuid import uuid4
 
 from app.config import settings
 from app.core.jwt import create_access_token
@@ -112,3 +113,38 @@ def regular_token(regular_user: User) -> str:
 
 def auth_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture
+def oauth_client(db_session: Session) -> OAuthClient:
+    client = OAuthClient(
+        client_id="test-oauth-client-" + uuid4().hex[:8],
+        name="Test OAuth Client",
+        is_confidential=False,
+        hashed_secret=None,
+        redirect_uris=["http://localhost:8001/callback"],
+        scopes=["openid", "profile", "email"],
+        grant_types=["authorization_code", "refresh_token", "password"],
+        is_active=True,
+    )
+    db_session.add(client)
+    db_session.commit()
+    db_session.refresh(client)
+    return client
+
+
+@pytest.fixture
+def oauth_confidential_client(db_session: Session) -> OAuthClient:
+    client = OAuthClient(
+        client_id="test-conf-client-" + uuid4().hex[:8],
+        name="Test Conf Client",
+        is_confidential=True,
+        hashed_secret=hash_password("test-conf-secret-12345"),
+        redirect_uris=[],
+        scopes=["openid", "email"],
+        grant_types=["client_credentials", "password"],
+        is_active=True,
+    )
+    db_session.add(client)
+    db_session.commit()
+    db_session.refresh(client)
+    return client

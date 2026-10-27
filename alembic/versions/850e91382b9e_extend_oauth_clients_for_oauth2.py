@@ -32,7 +32,7 @@ def upgrade() -> None:
         ))
         batch_op.add_column(sa.Column(
             'is_active', sa.Boolean(), nullable=False,
-            server_default=sa.text('1'),
+            server_default=sa.text('TRUE'),
         ))
         batch_op.add_column(sa.Column(
             'updated_at', sa.DateTime(), nullable=False,

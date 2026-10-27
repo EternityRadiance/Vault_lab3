@@ -1,21 +1,26 @@
 # Vault — OAuth2/OIDC Provider
 
 Сервис управления пользователями и OAuth-клиентами. Реализует **OAuth2 (RFC 6749)** и **OpenID Connect** с поддержкой:
-- RS256-подписи JWT и публикацией **JWKS**;
-- grant-типов `authorization_code` (с **PKCE**), `refresh_token` (с **rotation** и детекцией reuse), `password`, `client_credentials`;
-- OIDC: `id_token`, `/oauth/userinfo`, `/.well-known/openid-configuration`;
-- отзыва токенов (`/oauth/revoke`, RFC 7009) и интроспекции (`/oauth/introspect`, RFC 7662) с Redis blacklist;
-- расширенного GraphQL API для админки: сессии, refresh-токены, ротация секретов клиентов.
+
+- RS256-подписи JWT и публикацией **JWKS**.
+- Grant-типов `authorization_code` (с **PKCE S256**), `refresh_token` (с **rotation** и детекцией reuse), `password`, `client_credentials`.
+- OIDC: `id_token`, `/oauth/userinfo`, `/.well-known/openid-configuration`.
+- Отзыва токенов (`/oauth/revoke`, RFC 7009) и интроспекции (`/oauth/introspect`, RFC 7662) с Redis blacklist.
+- GraphQL API для админки: сессии, refresh-токены, ротация секретов клиентов.
 
 ## Стек
 
-- FastAPI, Ariadne (GraphQL, schema-first), SQLAlchemy 2.x, Alembic.
+- **FastAPI** — веб-фреймворк.
+- **Ariadne** — schema-first GraphQL.
+- **SQLAlchemy 2.x** — ORM.
+- **Alembic** — миграции.
+- **PostgreSQL** — БД (SQLite для тестов).
+- **Redis** — blacklist access-токенов.
 - **cryptography** — RSA-ключи, RS256.
-- **python-jose** — JWT (RS256).
-- **redis** — blacklist access-токенов.
+- **python-jose** — JWT.
 - **argon2-cffi** — хэширование паролей и `client_secret`.
 - **zxcvbn** — политика паролей.
-- **jinja2** — шаблоны для demo-RP.
+- **jinja2** — шаблоны demo-RP.
 
 ## Установка
 
@@ -28,27 +33,44 @@ pip install -r requirements.txt
 ```
 
 ## Настройка
-1. Скопировать .env.example в .env:
+1) Скопировать .env.example в .env:
+
 ```bash
 cp .env.example .env
 ```
 
-2. Сгенерировать секреты:
+
+2) Сгенерировать PASSWORD_PEPPER:
+
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(48))"
-python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
-Первый — в JWT_SECRET, второй — в PASSWORD_PEPPER.
 
-3. Сгенерировать RSA-ключи:
+Вставить в .env PASSWORD_PEPPER.
+
+3) Сгенерировать RSA-ключи:
+
 ```bash
 python scripts/gen_keys.py
 ```
 
-4. Поднять Redis (Docker):
+Создаст keys/rsa_private.pem и keys/rsa_public.pem. Приватный ключ не должен попадать в git — keys/ в .gitignore
+
+4) Поднять PostgreSQL (если не установлен):
+
+```bash
+sudo apt install postgresql postgresql-contrib
+sudo -u postgres psql -c "CREATE USER vault WITH PASSWORD '<password>';"
+sudo -u postgres psql -c "CREATE DATABASE vault_db OWNER <username>;"
+```
+
+
+5) Поднять Redis (Docker):
+
 ```bash
 docker run -d --name vault-redis --restart=always -p 6379:6379 redis:7-alpine
 ```
+
 
 ## Запуск
 ```bash
@@ -67,23 +89,24 @@ python run.py
 ## OAuth2/OIDC эндпоинты
 
 | Метод | Путь | Назначение |
-|-------------|-------------|-------------|
-| GET    | /oauth/authorize    | Authorization endpoint (PKCE)    |
-| POST    | /oauth/token    | Token endpoint (4 grant-типа)    |
-| POST    | /oauth/revoke    | 	Отзыв токена (RFC 7009)    |
-| POST    | /oauth/introspect    | Интроспекция (RFC 7662)    |
-| GET    | /oauth/userinfo    | OIDC UserInfo    |
-| GET    | /.well-known/jwks.json    | 	JWKS    |
-| GET    | /.well-known/openid-configuration    | 	OIDC Discovery    |
+|-------|------|-----------|
+| GET  | `/oauth/authorize` | Authorization endpoint (PKCE) |
+| POST | `/oauth/token` | Token endpoint (4 grant-типа) |
+| POST | `/oauth/revoke` | Отзыв токена (RFC 7009) |
+| POST | `/oauth/introspect` | Интроспекция (RFC 7662) |
+| GET  | `/oauth/userinfo` | OIDC UserInfo |
+| GET  | `/.well-known/jwks.json` | JWKS |
+| GET  | `/.well-known/openid-configuration` | OIDC Discovery |
 
 ## Поддерживаемые grant-типы
-1) authorization_code (с PKCE S256 — обязателен для публичных клиентов)
-2) refresh_token (с rotation и reuse detection)
-3) password (deprecated в OAuth 2.1, но оставлен для first-party приложений)
-4) client_credentials (только для конфиденциальных клиентов)
 
+- `authorization_code` (с **PKCE S256** — обязателен для публичных клиентов).
+- `refresh_token` (с **rotation** и **reuse detection**).
+- `password` (deprecated в OAuth 2.1, но оставлен для first-party приложений).
+- `client_credentials` (только для конфиденциальных клиентов).
 
-## Пример обмена code -> token
+## Пример обмена code → token
+
 ```bash
 curl -X POST http://127.0.0.1:8000/oauth/token \
   -d "grant_type=authorization_code" \
@@ -94,47 +117,31 @@ curl -X POST http://127.0.0.1:8000/oauth/token \
 ```
 
 ## demo-RP
-Демонстрационный OIDC-клиент. См. demo_rp/README.md
+Демонстрационный OIDC-клиент (FastAPI + Jinja2).
+
 ```bash
 uvicorn demo_rp.main:app --port 8001
+```
+Ограничение: в браузере flow требует SSR-логин (WIP). Сейчас — проверяется через curl (см. USAGE.md).
+
+## Назначение админа
+```bash
+python scripts/make_admin.py user@example.com
 ```
 
 ## Тесты
 ```bash
+python examples/check_oauth.py
 pytest
 ```
 
-## Структура проекта
-lab3_vault/
-├── app/
-│   ├── main.py
-│   ├── config.py
-│   ├── core/security/       # jwt_rsa, pkce, passwords
-│   ├── db/
-│   ├── models/              # User, OAuthClient, RefreshToken, AuthCode, UserSession, AuditEvent
-│   ├── auth/                # REST /auth/*
-│   ├── oauth/               # /oauth/*: authorize, token, revoke, introspect, userinfo, discovery, jwks
-│   │   └── grants/          # password, authorization_code, refresh_token, client_credentials
-│   ├── graphql/
-│   ├── audit/
-│   └── static/
-├── demo_rp/
-│   ├── main.py
-│   └── templates/
-├── scripts/
-│   └── gen_keys.py
-├── keys/                    # .gitignore
-├── alembic/
-├── tests/
-├── requirements.txt
-├── run.py
-└── README.md
-
 ## Безопасность
-1) RS256 (приватный ключ в keys/, публичный в JWKS).
-2) Argon2id + pepper для паролей и client_secret.
-3) PKCE обязателен для публичных клиентов.
-4) Redirect URI — точное совпадение.
-5) Refresh rotation + reuse detection → отзыв всего семейства.
-6) Blacklist access-токенов в Redis (TTL = остаток жизни).
-7) .env, keys/, *.db — в .gitignore.
+
+- **JWT (RS256)** для всех токенов: REST, GraphQL, OAuth2. Публичный ключ в JWKS.
+- **Argon2id + pepper** для паролей и `client_secret`.
+- **PKCE S256** для публичных клиентов.
+- **Redirect URI** — точное совпадение.
+- **Refresh rotation** + reuse detection -> отзыв всего семейства.
+- **Blacklist access-токенов** в Redis (TTL = остаток жизни).
+- **httponly cookies** для `/admin/` и `/account/` + CSRF-токен.
+- `.env`, `keys/`, `*.db` — в `.gitignore`.
